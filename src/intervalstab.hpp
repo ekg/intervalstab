@@ -48,7 +48,7 @@ struct interval {
 
 // lexicographic order
 inline bool operator<(const interval& x,const interval& y) {
-	return (x.l < y.l || x.l == y.l && x.r < y.r);
+	return (x.l < y.l || x.l == y.l && x.r > y.r);
 }
 
 // equality
@@ -74,15 +74,17 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<interval*>& 
 	return os;
 }
 
+/*
 struct IntervalComp {
     bool operator()(const interval &x, const interval &y) const {
 		if (x.l < y.l) return true;
 		if (x.l > y.l) return false;
-		if (x.r < y.r) return true; // same starting point: ascending order
-		if (x.r > y.r) return false;
+		if (x.r < y.r) return false; // same starting point: descending order
+		if (x.r > y.r) return true;
         return false;
     }
 };
+*/
 
 /*
 // compare function for quicksort (lexicographic order)
@@ -129,7 +131,7 @@ private:
 
     void preprocessing(void) {
         // sort the array
-        ips4o::parallel::sort(a.begin(), a.end(), IntervalComp());
+        ips4o::parallel::sort(a.begin(), a.end()); //, IntervalComp());
         // if we want to work on unique data
         //a.erase(std::unique(a.begin(), a.end()), a.end());
         //((Interval*)buffer.data)+data_len,
@@ -144,7 +146,7 @@ private:
                 eventlist[a[i].r].push_back(&a[i]);
                 eventlist[l].push_back(&a[i]);
             } else {
-                //assert(a[i-1].l == l && a[i-1].r > a[i].r);
+                assert(a[i-1].l == l && a[i-1].r >= a[i].r);
                 a[i-1].smaller = &a[i];
             }
             starting = l;
@@ -154,9 +156,9 @@ private:
         std::list<interval*> L; // status list
         interval* temp;
         interval* last;
-        for (auto& x : a) {
-            x.pIt = L.begin();
-        }
+        //for (auto& x : a) {
+            //x.pIt = L.begin();
+        //}
         for (i=1; i<=bigN; ++i) {
             // interval with starting point i
             if (!eventlist[i].empty()) {
@@ -167,8 +169,10 @@ private:
                     eventlist[i].pop_back();
                 }
             }
-            //log << "\n" << i << ": " << eventlist[i] << ", \n\tL=" << L << "\n";
-            assert(!L.empty() || eventlist[i].empty());
+            std::cerr << "sweeep " << i << ": " << eventlist[i];
+            for (auto& l : L) std::cerr << " " << l;
+            std::cerr << std::endl;
+            //assert(!L.empty() || eventlist[i].empty());
             if (!L.empty()) {
                 // compute stop[i]
                 stop[i] = L.back();
@@ -177,6 +181,7 @@ private:
                     temp = *it;
                     std::cerr << "Temp " << temp->l << " " << temp->r << std::endl;
                     if (temp->pIt != L.begin()) {
+                        std::cerr << "setting last " << *temp << std::endl;
                         last = *std::prev(temp->pIt);
                     } else last = &dummy;
                     //std::cerr << "\n\t\t" << last << "\t\t" << temp << std::endl;
@@ -184,13 +189,16 @@ private:
                     temp->leftsibling = last->rightchild;
                     last->rightchild = temp;
                     //temp->pIt =
+                    std::cerr << "L size " << L.size() << std::endl;
+                    //if (temp->pIt != L.end())
                     L.erase(temp->pIt);
+                    //temp->pIt = std::prev(L.end());
                     last = temp;
                 }
             }
         }
 //#ifdef INTERVALSTAB_DEBUG
-//	cout << "\nDummy\t\t" << &dummy << "\n" << a << "\n";
+        std::cerr << "\nDummy\t\t" << &dummy << "\n" << a.size() << std::endl;
 //#endi
     }
 
@@ -226,7 +234,7 @@ public:
 	faststabbing(std::vector<interval>& intervals,
                  const uint64_t& numberIntervals,
                  const uint64_t& numberDomain)
-        : a(intervals), eventlist(numberDomain+1), stop(numberDomain)  {
+        : a(intervals), eventlist(numberDomain+1), stop(numberDomain+1)  {
 		n = numberIntervals;
 		bigN = numberDomain;
 		dummy.parent = nullptr;
