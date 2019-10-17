@@ -1,7 +1,18 @@
-- This program uses the open source graph drawing framework OGDF v2007.11. You can find it here: www.ogdf.net.
+# intervalstab
 
-- Please include "ogdf.lib" in the project and built it with Visual Studio 2008.
+FastStabbing based on the STL
 
-- Alternatively, you can use the precompiled executable (Windows 32-bit) in the package.
+## building
 
-Copyright, Jens M. Schmidt
+`cmake -H. -Bbuild && cmake --build build -- -j 4`
+
+## testing
+
+`bin/intervalstab -T x -s 20000 -M 200 -m 10 -D 0 -S 233282`
+
+## acknowledgements
+
+This is a fork of code produced for this paper on optimal structures to solve the interval stabbing problem.
+
+    Schmidt, Jens M. "Interval stabbing problems in small integer ranges."
+    International Symposium on Algorithms and Computation. Springer, Berlin, Heidelberg, 2009.
