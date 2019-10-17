@@ -36,6 +36,7 @@ int main(int argc, char** argv) {
     args::ValueFlag<uint64_t> range_stdev(parser, "N", "the standard deviation for intervals (under gaussian distribution)", {'D', "range-stdev"});
     args::ValueFlag<uint64_t> threads(parser, "N", "number of threads to use", {'t', "threads"});
     args::ValueFlag<uint64_t> domains(parser, "N", "number of domains for interpolation", {'d', "domains"});
+    args::ValueFlag<uint64_t> random_seed(parser, "N", "a random seed for the algorithm", {'S', "random-seed"});
 
     try {
         parser.ParseCLI(argc, argv);
@@ -68,7 +69,7 @@ int main(int argc, char** argv) {
     //bb.add(intpair(34,56));
 
     std::random_device rd;  //Will be used to obtain a seed for the random number engine
-    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+    std::mt19937 gen(args::get(random_seed)?args::get(random_seed):rd()); //Standard mersenne_twister_engine seeded with rd()
     uint64_t max_value = args::get(max_val);
     std::uniform_int_distribution<uint64_t> dis(0, max_value);
     std::normal_distribution<> dlen(args::get(range_mean),args::get(range_stdev));

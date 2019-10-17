@@ -47,12 +47,17 @@ struct interval {
  };
 
 // lexicographic order
-inline bool operator <(const interval& x,const interval& y) {
+inline bool operator<(const interval& x,const interval& y) {
 	return (x.l < y.l || x.l == y.l && x.r < y.r);
 }
 
+// equality
+inline bool operator==(const interval& x,const interval& y) {
+	return (x.l == y.l && x.r == y.r);
+}
+
 // lexicographic order
-inline bool operator >(const interval& x,const interval& y) {
+inline bool operator>(const interval& x,const interval& y) {
 	return y < x;
 }
 
@@ -124,11 +129,9 @@ private:
 
     void preprocessing(void) {
         // sort the array
-        ips4o::parallel::sort(a.begin(), a.end(),
-                              IntervalComp());
-        for (auto& x : a) {        
-            std::cerr << x << std::endl;
-        }
+        ips4o::parallel::sort(a.begin(), a.end(), IntervalComp());
+        // if we want to work on unique data
+        //a.erase(std::unique(a.begin(), a.end()), a.end());
         //((Interval*)buffer.data)+data_len,
         //IntervalLess());
         // create smaller lists and event lists
@@ -176,10 +179,11 @@ private:
                     if (temp->pIt != L.begin()) {
                         last = *std::prev(temp->pIt);
                     } else last = &dummy;
-                    //log << "\n\t\t" << last << "\t\t" << temp;
+                    //std::cerr << "\n\t\t" << last << "\t\t" << temp << std::endl;
                     temp->parent = last;
                     temp->leftsibling = last->rightchild;
                     last->rightchild = temp;
+                    //temp->pIt =
                     L.erase(temp->pIt);
                     last = temp;
                 }
