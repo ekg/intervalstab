@@ -74,19 +74,10 @@ int main(int argc, char** argv) {
     std::normal_distribution<> dlen(args::get(range_mean),args::get(range_stdev));
     uint64_t x_len = args::get(test_size);
     uint64_t max_seen_value = 0;
-#pragma omp parallel for
+//#pragma omp parallel for
     for (int n=0; n<x_len; ++n) {
         uint64_t q = dis(gen);
-        uint64_t r = std::min(q + std::max((uint64_t)0, (uint64_t)std::round(dlen(gen))), max_value);
-        //max_seen_value = std::max(r, max_seen_value);
-        //uint64_t a = std::min(q, r);
-        //uint64_t b = std::max(q, r);
-        //std::cerr << q << ", " << r << std::endl;
-        //bb.add(intpair(q, r));
-        //intervals.emplace_back();
-        //interval i = intervals.back();
-        //i.l = q;
-        //i.r = r;
+        uint64_t r = std::min(q + (uint64_t)std::max((int64_t)0, (int64_t)std::round(dlen(gen))), max_value);
         intervals.push_back(interval(q, r));
     }
     //tree.index();

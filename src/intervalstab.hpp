@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <fstream>
 #include <iostream>
 #include <cassert>
+#include "ips4o.hpp"
 
 namespace intervalstab {
 
@@ -35,55 +36,13 @@ struct interval {
 	interval* rightchild = nullptr;
 	interval* parent = nullptr;
 	interval* smaller = nullptr;
-    std::list<interval*>::iterator pIt = (std::list<interval*>::iterator)nullptr;
+    std::list<interval*>::iterator pIt; // = (std::list<interval*>::iterator)nullptr;
     bool stabbed = false;
     interval(void) { }
     interval(const uint64_t& a,
              const uint64_t& b)
         : l(a),
           r(b) { }
-    interval(const interval& other)
-        : l(other.l)
-        , r(other.r)
-        , leftsibling(other.leftsibling)
-        , rightchild(other.rightchild)
-        , parent(other.parent)
-        , smaller(other.smaller)
-        , pIt(other.pIt)
-        , stabbed(other.stabbed)
-        { }
-    interval(interval&& other) {
-        l = other.l;
-        r = other.r;
-        leftsibling = other.leftsibling;
-        rightchild = other.rightchild;
-        parent = other.parent;
-        smaller = other.smaller;
-        pIt = other.pIt;
-        stabbed = other.stabbed;
-    }
-    interval& operator=(const interval& other) {
-        l = other.l;
-        r = other.r;
-        leftsibling = other.leftsibling;
-        rightchild = other.rightchild;
-        parent = other.parent;
-        smaller = other.smaller;
-        pIt = other.pIt;
-        stabbed = other.stabbed;
-        return *this;
-    }
-    interval& operator=(interval&& other) {
-        l = other.l;
-        r = other.r;
-        leftsibling = other.leftsibling;
-        rightchild = other.rightchild;
-        parent = other.parent;
-        smaller = other.smaller;
-        pIt = other.pIt;
-        stabbed = other.stabbed;
-        return *this;
-    }
     ~interval(void) { }
  };
 
@@ -100,7 +59,7 @@ inline bool operator >(const interval& x,const interval& y) {
 // output stream for intervals
 inline std::ostream& operator<<(std::ostream& os, const interval& a) {
 	os << &a << "\t" << a.l << "\t" << a.r << "\tP " << a.parent << " L " << a.leftsibling
-		<< " C " << a.rightchild << "  Sm " << a.smaller << "\n";
+       << " C " << a.rightchild << "  Sm " << a.smaller;
 	return os;
 }
 inline std::ostream& operator<<(std::ostream& os, const std::vector<interval*>& a) {
@@ -109,6 +68,16 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<interval*>& 
 	}
 	return os;
 }
+
+struct IntervalComp {
+    bool operator()(const interval &x, const interval &y) const {
+		if (x.l < y.l) return true;
+		if (x.l > y.l) return false;
+		if (x.r < y.r) return true; // same starting point: ascending order
+		if (x.r > y.r) return false;
+        return false;
+    }
+};
 
 /*
 // compare function for quicksort (lexicographic order)
@@ -154,6 +123,14 @@ private:
 	interval dummy;
 
     void preprocessing(void) {
+        // sort the array
+        ips4o::parallel::sort(a.begin(), a.end(),
+                              IntervalComp());
+        for (auto& x : a) {
+            std::cout << x << std::endl;
+        }
+        //((Interval*)buffer.data)+data_len,
+        //IntervalLess());
         // create smaller lists and event lists
         uint64_t i,l,starting=-1;
         for (i=0; i<n; ++i) {
@@ -191,6 +168,7 @@ private:
                 // intervals with end points i
                 for (auto it = eventlist[i].rbegin(); it != eventlist[i].rend(); --it) {
                     temp = *it;
+                    std::cerr << "Temp " << temp->l << " " << temp->r << std::endl;
                     if (temp->pIt != L.begin()) {
                         last = *std::prev(temp->pIt);
                     } else last = &dummy;
