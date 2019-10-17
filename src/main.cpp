@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
     for (int n=0; n<max_value; ++n) {
         std::vector<interval*> ovlp = db.query(n);
         if (n % 1000 == 0) std::cerr << n << "\r";
-        //std::cerr << n << " has " << ovlp.size() << " overlaps" << std::endl;
+        std::cerr << n << " has " << ovlp.size() << " overlaps" << std::endl;
         for (auto& s : ovlp) {
             if (s->l > n || s->r < n) {
                 std::cerr << "tree broken at " << n << std::endl;

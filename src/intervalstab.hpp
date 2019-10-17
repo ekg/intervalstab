@@ -126,8 +126,8 @@ private:
         // sort the array
         ips4o::parallel::sort(a.begin(), a.end(),
                               IntervalComp());
-        for (auto& x : a) {
-            std::cout << x << std::endl;
+        for (auto& x : a) {        
+            std::cerr << x << std::endl;
         }
         //((Interval*)buffer.data)+data_len,
         //IntervalLess());
@@ -135,12 +135,13 @@ private:
         uint64_t i,l,starting=-1;
         for (i=0; i<n; ++i) {
             l = a[i].l;
+            std::cerr << "processing " << a[i] << std::endl;
             if (l != starting) {
                 // sorted event lists for sweepline
                 eventlist[a[i].r].push_back(&a[i]);
                 eventlist[l].push_back(&a[i]);
             } else {
-                assert(a[i-1].l == l && a[i-1].r > a[i].r);
+                //assert(a[i-1].l == l && a[i-1].r > a[i].r);
                 a[i-1].smaller = &a[i];
             }
             starting = l;
@@ -150,6 +151,9 @@ private:
         std::list<interval*> L; // status list
         interval* temp;
         interval* last;
+        for (auto& x : a) {
+            x.pIt = L.begin();
+        }
         for (i=1; i<=bigN; ++i) {
             // interval with starting point i
             if (!eventlist[i].empty()) {
@@ -166,7 +170,7 @@ private:
                 // compute stop[i]
                 stop[i] = L.back();
                 // intervals with end points i
-                for (auto it = eventlist[i].rbegin(); it != eventlist[i].rend(); --it) {
+                for (auto it = eventlist[i].rbegin(); it != eventlist[i].rend(); ++it) {
                     temp = *it;
                     std::cerr << "Temp " << temp->l << " " << temp->r << std::endl;
                     if (temp->pIt != L.begin()) {
@@ -228,7 +232,7 @@ public:
 	};
 
 	std::vector<interval*> query(const uint64_t& q) { //, uint64_t& numComparisons) {
-        assert(q >= 1 && q <= bigN+1);
+        //assert(q >= 1 && q <= bigN+1);
         std::vector<interval*> output;
         if (stop[q] == nullptr) return output; // no stabbed intervals
         interval* i;
