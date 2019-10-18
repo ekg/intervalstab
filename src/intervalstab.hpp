@@ -140,7 +140,7 @@ private:
         uint64_t i,l,starting=-1;
         for (i=0; i<n; ++i) {
             l = a[i].l;
-            std::cerr << "processing " << a[i] << std::endl;
+            //std::cerr << "processing " << a[i] << std::endl;
             if (l != starting) {
                 // sorted event lists for sweepline
                 eventlist[a[i].r].push_back(&a[i]);
@@ -169,9 +169,11 @@ private:
                     eventlist[i].pop_back();
                 }
             }
+            /*
             std::cerr << "sweeep " << i << ": " << eventlist[i];
             for (auto& l : L) std::cerr << " " << l;
             std::cerr << std::endl;
+            */
             //assert(!L.empty() || eventlist[i].empty());
             if (!L.empty()) {
                 // compute stop[i]
@@ -179,9 +181,9 @@ private:
                 // intervals with end points i
                 for (auto it = eventlist[i].rbegin(); it != eventlist[i].rend(); ++it) {
                     temp = *it;
-                    std::cerr << "Temp " << temp->l << " " << temp->r << std::endl;
+                    //std::cerr << "Temp " << temp->l << " " << temp->r << std::endl;
                     if (temp->pIt != L.begin()) {
-                        std::cerr << "setting last " << *temp << std::endl;
+                        //std::cerr << "setting last " << *temp << std::endl;
                         last = *std::prev(temp->pIt);
                     } else last = &dummy;
                     //std::cerr << "\n\t\t" << last << "\t\t" << temp << std::endl;
@@ -189,7 +191,7 @@ private:
                     temp->leftsibling = last->rightchild;
                     last->rightchild = temp;
                     //temp->pIt =
-                    std::cerr << "L size " << L.size() << std::endl;
+                    //std::cerr << "L size " << L.size() << std::endl;
                     //if (temp->pIt != L.end())
                     L.erase(temp->pIt);
                     //temp->pIt = std::prev(L.end());
@@ -198,7 +200,7 @@ private:
             }
         }
 //#ifdef INTERVALSTAB_DEBUG
-        std::cerr << "\nDummy\t\t" << &dummy << "\n" << a.size() << std::endl;
+        //std::cerr << "\nDummy\t\t" << &dummy << "\n" << a.size() << std::endl;
 //#endi
     }
 
@@ -281,7 +283,7 @@ public:
                 temp = temp->rightchild;
             }
         }
-        assert(verify(output,q) == 0);
+        //assert(verify(output,q) == 0);
         return output;
     }
 };

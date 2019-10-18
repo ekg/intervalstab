@@ -90,14 +90,15 @@ int main(int argc, char** argv) {
 //#pragma omp parallel for
     for (int n=1; n<=max_seen_value; ++n) {
         std::vector<interval*> ovlp = db.query(n);
-        //if (n % 1000 == 0) std::cerr << n << "\r";
-        std::cerr << n << " has " << ovlp.size() << " overlaps" << std::endl;
+        if (n % 1000 == 0) std::cerr << n << "\r";
+        //std::cerr << n << " has " << ovlp.size() << " overlaps" << std::endl;
         for (auto& s : ovlp) {
             if (s->l > n || s->r < n) {
                 std::cerr << "tree broken at " << n << std::endl;
             }
         }
     }
+    std::cerr << std::endl;
     
     //std::vector<intpair> results = db.overlap(22, 25);
     // alternative: db.overlap(22, 25, results);
