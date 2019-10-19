@@ -97,21 +97,54 @@ ExternalProject_Add(mmap_allocator
 ExternalProject_Get_property(mmap_allocator SOURCE_DIR)
 set(mmap_allocator_INCLUDE "${SOURCE_DIR}")
 
+# sdsl-lite (full build using its cmake config)
+ExternalProject_Add(sdsl-lite
+  GIT_REPOSITORY "https://github.com/simongog/sdsl-lite.git"
+  GIT_TAG "d52aa9a71513d132e30c09491b5899af449ebb94"
+  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_DIR} # TODO ADD static build flag
+  UPDATE_COMMAND ""
+  INSTALL_COMMAND "")
+ExternalProject_Get_property(sdsl-lite INSTALL_DIR)
+set(sdsl-lite_INCLUDE "${INSTALL_DIR}/src/sdsl-lite-build/include")
+set(sdsl-lite-divsufsort_INCLUDE "${INSTALL_DIR}/src/sdsl-lite-build/external/libdivsufsort/include")
+set(sdsl-lite_LIB "${INSTALL_DIR}/src/sdsl-lite-build/lib")
+set(sdsl-lite-divsufsort_LIB "${INSTALL_DIR}/src/sdsl-lite-build/external/libdivsufsort/lib")
+
+# DYNAMIC (full build using its cmake config)
+ExternalProject_Add(dynamic
+  GIT_REPOSITORY "https://github.com/vgteam/DYNAMIC.git"
+  GIT_TAG "40319a97b0f2e44ad8603c136712d402841dba5e"
+  # we don't actually install dynamic... it's header only
+  #CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_DIR}
+  UPDATE_COMMAND ""
+  INSTALL_COMMAND ""
+  BUILD_COMMAND ""
+  CONFIGURE_COMMAND "")
+ExternalProject_Get_property(dynamic INSTALL_DIR)
+set(dynamic_INCLUDE "${INSTALL_DIR}/src/dynamic/include")
+
 set(CMAKE_BUILD_TYPE Debug)
 
 # set up our target executable and specify its dependencies and includes
 add_executable(intervalstab
   ${CMAKE_SOURCE_DIR}/src/main.cpp
   )
-add_dependencies(intervalstab ips4o tayweeargs mmap_allocator)
+add_dependencies(intervalstab ips4o tayweeargs mmap_allocator sdsl-lite dynamic)
 target_include_directories(intervalstab PUBLIC
   "${CMAKE_SOURCE_DIR}/src"
   "${ips4o_INCLUDE}"
   "${mmap_allocator_INCLUDE}"
-  "${tayweeargs_INCLUDE}")
+  "${tayweeargs_INCLUDE}"
+  "${dynamic_INCLUDE}"
+  "${sdsl-lite_INCLUDE}"
+  "${sdsl-lite-divsufsort_INCLUDE}")
 
 target_link_libraries(intervalstab
   "${mmap_allocator_INCLUDE}/libmmap_allocator.a"
+  "${sdsl-lite_LIB}/libsdsl.a"
+  "${sdsl-lite-divsufsort_LIB}/libdivsufsort.a"
+  "${sdsl-lite-divsufsort_LIB}/libdivsufsort64.a"
+  "-ldl"
   "-latomic")
   
 if (APPLE)

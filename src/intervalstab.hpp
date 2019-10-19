@@ -74,52 +74,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<interval*>& 
 	return os;
 }
 
-/*
-struct IntervalComp {
-    bool operator()(const interval &x, const interval &y) const {
-		if (x.l < y.l) return true;
-		if (x.l > y.l) return false;
-		if (x.r < y.r) return false; // same starting point: descending order
-		if (x.r > y.r) return true;
-        return false;
-    }
-};
-*/
-
-/*
-// compare function for quicksort (lexicographic order)
-class IntervalComparer: public Comparer<interval>
-{
-public:
-	IntervalComparer() { }
-
-	int compare(const interval& x, const interval& y) {
-		if (x.l < y.l) return -1;
-		if (x.l > y.l) return 1;
-		if (x.r < y.r) return -1; // same starting point: ascending order
-		if (x.r > y.r) return 1;
-		return 0;
-	}
-};
-
-// compare function for quicksort (lexicographic order with inverse end point order)
-class IntervalComparerInv: public Comparer<interval>
-{
-public:
-	IntervalComparerInv() { }
-
-	int compare(const interval& x, const interval& y) {
-		if (x.l < y.l) return -1;
-		if (x.l > y.l) return 1;
-		if (x.r < y.r) return 1; // same starting point: descending order
-		if (x.r > y.r) return -1;
-		return 0;
-	}
-};
-*/
-
 // fast stabbing
-//template <typename interval>
+//template <typename interval> // TODO
 class faststabbing
 {
 private:
@@ -156,9 +112,6 @@ private:
         std::list<interval*> L; // status list
         interval* temp;
         interval* last;
-        //for (auto& x : a) {
-            //x.pIt = L.begin();
-        //}
         for (i=1; i<=bigN; ++i) {
             // interval with starting point i
             if (!eventlist[i].empty()) {
