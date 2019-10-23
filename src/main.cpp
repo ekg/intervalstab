@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <iostream>
 #include <vector>
 #include <random>
-#include "intervalstab.hpp"
+#include "mmintervalstab.hpp"
 #include "args.hxx"
 
 using namespace intervalstab;
@@ -58,11 +58,12 @@ int main(int argc, char** argv) {
     assert(args::get(max_val));
 
 
-    std::vector<interval> intervals;
+    //std::vector<interval> intervals;
     
     //std::remove(args::get(test_file).c_str());
     //p_iitii::builder bb = p_iitii::builder(args::get(test_file));
     //p_iitii::builder bb = p_iitii::builder(args::get(test_file));
+    faststabbing<uint64_t> db(args::get(test_file)); //intervals, intervals.size(), max_seen_value);
 
     //bb.add(intpair(12,34));
     //bb.add(intpair(0,23));
@@ -80,16 +81,18 @@ int main(int argc, char** argv) {
         uint64_t q = dis(gen);
         uint64_t r = std::min(q + (uint64_t)std::max((int64_t)0, (int64_t)std::round(dlen(gen))), max_value);
         max_seen_value = std::max(max_seen_value, r);
-        intervals.push_back(interval(q, r));
+        db.add(interval<uint64_t>(q, r, 0));
     }
+
+    db.index();
     //tree.index();
 
-    faststabbing db(intervals, intervals.size(), max_seen_value);
+
     //p_iitii db = bb.build(n_domains);
     //p_iitii db = bb.build();
 //#pragma omp parallel for
     for (int n=1; n<=max_seen_value; ++n) {
-        std::vector<interval*> ovlp = db.query(n);
+        std::vector<interval<uint64_t>*> ovlp = db.query(n);
         if (n % 1000 == 0) std::cerr << n << "\r";
         //std::cerr << n << " has " << ovlp.size() << " overlaps" << std::endl;
         for (auto& s : ovlp) {
