@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
     //p_iitii db = bb.build();
 //#pragma omp parallel for
     for (int n=1; n<=max_seen_value; ++n) {
-        std::vector<interval<uint64_t>*> ovlp = db.query(n);
+        std::vector<interval_node<uint64_t>*> ovlp = db.query(n);
         if (n % 1000 == 0) std::cerr << n << "\r";
         //std::cerr << n << " has " << ovlp.size() << " overlaps" << std::endl;
         for (auto& s : ovlp) {
