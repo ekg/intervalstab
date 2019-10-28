@@ -40,16 +40,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <cassert>
 #include "ips4o.hpp"
 #include "mmappable_vector.h"
-#include "dynamic.hpp"
 
 namespace intervalstab {
 
 using namespace mmap_allocator_namespace;
-
-typedef dyn::succinct_bitvector<dyn::spsi<dyn::packed_bit_vector,256,16> > suc_bv;
-typedef dyn::lciv<dyn::packed_vector,256,16> lciv_iv;
-//typedef dyn::wt_string<dyn::succinct_bitvector<dyn::spsi<dyn::packed_vector,256,16> > > wt_str;
-typedef dyn::hacked_vector suc_iv;
 
 // an interval
 template <typename T>
