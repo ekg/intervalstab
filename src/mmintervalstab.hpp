@@ -50,18 +50,22 @@ template <typename T>
 struct interval {
 	uint64_t l = 0;
     uint64_t r = 0;
-	interval<T>* leftsibling = nullptr;
-	interval<T>* rightchild = nullptr;
-	interval<T>* parent = nullptr;
-	interval<T>* smaller = nullptr;
-    typename std::list<interval<T>*>::iterator pIt; // = (std::list<interval*>::iterator)nullptr;
-    bool stabbed = false;
     T value;
     interval<T>(void) { }
     interval<T>(const uint64_t& a,
                 const uint64_t& b,
                 const T& d) : l(a), r(b), value(d) { }
     ~interval<T>(void) { }
+};
+
+template <typename T>
+struct interval_node : interval<T> {
+	interval_node<T>* leftsibling = nullptr;
+	interval_node<T>* rightchild = nullptr;
+	interval_node<T>* parent = nullptr;
+	interval_node<T>* smaller = nullptr;
+    typename std::list<interval_node<T>*>::iterator pIt;
+    bool stabbed = false;
 };
 
 // lexicographic order
@@ -84,13 +88,13 @@ inline bool operator>(const interval<T>& x,const interval<T>& y) {
 
 // output stream for intervals
 template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const interval<T>& a) {
+inline std::ostream& operator<<(std::ostream& os, const interval_node<T>& a) {
 	os << &a << "\t" << a.l << "\t" << a.r << "\tP " << a.parent << " L " << a.leftsibling
        << " C " << a.rightchild << "  Sm " << a.smaller;
 	return os;
 }
 template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const std::vector<interval<T>*>& a) {
+inline std::ostream& operator<<(std::ostream& os, const std::vector<interval_node<T>*>& a) {
 	for (unsigned int i = 0; i < a.size(); ++i) {
 		os << *a[i];
 	}
@@ -129,7 +133,6 @@ private:
     char* reader = nullptr;
     int reader_fd = 0;
     std::string filename;
-    std::string index_filename;
     bool sorted = false;
     // key information
     uint64_t n_records = 0;
@@ -137,7 +140,6 @@ private:
     uint32_t OUTPUT_VERSION = 1; // update as we change our format
 
 public:
-    //~iit_mm_builder_base(void) { close_writers(); }
 
     void set_base_filename(const std::string& f) {
         filename = f;
@@ -149,8 +151,8 @@ public:
             writer.seekp(0, std::ios_base::end); // seek to the end for appending
             return;
         }
-        assert(!filename.empty());
-        writer.open(filename.c_str(), std::ios::binary | std::ios::trunc);
+        assert(!intervals_filename().empty());
+        writer.open(intervals_filename().c_str(), std::ios::binary | std::ios::trunc);
         if (writer.fail()) {
             throw std::ios_base::failure(std::strerror(errno));
         }
@@ -181,8 +183,20 @@ public:
         return wf.str();
     }
 
+    std::string intervals_filename(void) {
+        return filename + ".intervals";
+    }
+
     std::string eventlist_filename(void) {
         return filename + ".eventlist";
+    }
+
+    std::string eventlist_layout_filename(void) {
+        return filename + ".eventlist.layout";
+    }
+
+    std::string node_filename(void) {
+        return filename + ".nodes";
     }
 
     std::string stop_filename(void) {
@@ -194,14 +208,28 @@ public:
     }
 
     void sync_and_close_parallel_writers(void) {
-        // close the temp writers and cat them onto the end of the main file
-        open_main_writer();
+        // check to see if we ran single-threaded
+        uint64_t used_writers = 0;
+        uint64_t writer_that_wrote = 0;
         for (size_t i = 0; i < writers.size(); ++i) {
             writers[i].close();
-            std::ifstream if_w(writer_filename(i), std::ios_base::binary);
-            writer << if_w.rdbuf();
-            if_w.close();
-            std::remove(writer_filename(i).c_str());
+            if (filesize(writer_filename(i).c_str())) {
+                ++used_writers;
+                writer_that_wrote = i;
+            }
+        }
+        bool single_threaded = used_writers > 1;
+        // close the temp writers and cat them onto the end of the main file
+        if (single_threaded) {
+            std::rename(writer_filename(writer_that_wrote).c_str(), intervals_filename().c_str());
+        } else {
+            open_main_writer();
+            for (size_t i = 0; i < writers.size(); ++i) {
+                std::ifstream if_w(writer_filename(i), std::ios_base::binary);
+                writer << if_w.rdbuf();
+                if_w.close();
+                std::remove(writer_filename(i).c_str());
+            }
         }
         writers.clear();
         writer.close();
@@ -222,7 +250,7 @@ public:
 
     /// get the record count
     size_t record_count(void) {
-        int fd = open(filename.c_str(), O_RDWR);
+        int fd = open(intervals_filename().c_str(), O_RDWR);
         if (fd == -1) {
             assert(false);
         }
@@ -236,48 +264,149 @@ public:
         return count;
     }
 
-    mmappable_vector<interval<T>> a; // array of intervals [0,n-1]
+    std::ifstream::pos_type filesize(const char* filename) {
+        std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
+        return in.tellg(); 
+    }
+
+    mmappable_vector<interval<T>> intervals; // array of intervals [0,n-1]
+    mmappable_vector<interval_node<T>> a; // array of interval contexts [0,n-1]
 	uint64_t n,bigN;
-    mmappable_vector<std::vector<interval<T>*> > eventlist; // sweepline
-    mmappable_vector<interval<T>*> stop;
-	interval<T> dummy;
+    mmappable_vector<interval_node<T>*> eventlist;
+    mmappable_vector<uint64_t> eventlist_layout;
+    //lciv_iv eventlist;
+    //suc_bv eventlist_delim;
+
+    mmappable_vector<interval_node<T>*> stop;
+	interval_node<T> dummy;
 
     void preprocessing(void) {
-        // sort the array
-
-        // if we want to work on unique data
-        //a.erase(std::unique(a.begin(), a.end()), a.end());
-        //((Interval*)buffer.data)+data_len,
-        //IntervalLess());
-        // create smaller lists and event lists
-        uint64_t i,l,starting=-1;
-        for (i=0; i<n; ++i) {
+        // calculate numberDomain, numberIntervals, n, and bigN
+        // sync the writers and mmap the file into our vector
+        sync_and_close_parallel_writers();
+        intervals.mmap_file(intervals_filename().c_str(), READ_WRITE_SHARED, 0, record_count());
+        n = record_count(); // number of intervals
+        ips4o::parallel::sort(intervals.begin(), intervals.end()); // sort the intervals
+        uint64_t domain_count = 0; // find the domain of our integer space
+        for (auto& i : intervals) { if (i.r > domain_count) domain_count = i.r; }
+        bigN = domain_count; // number of domains
+        //std::cerr << "bigN = " << bigN << std::endl;
+        fill_file<interval_node<T>>(node_filename().c_str(), n);
+        a.mmap_file(node_filename().c_str(), READ_WRITE_SHARED, 0, n);
+        // copy intervals into our stabbing tree
+        for (uint64_t i = 0; i < n; ++i) {
+            auto& o = intervals[i];
+            a[i].l = o.l;
+            a[i].r = o.r;
+            a[i].value = o.value;
+        }
+        // clean up intervals file
+        intervals.munmap_file();
+        std::remove(intervals_filename().c_str());
+        // mmap our sweepline and stop
+        fill_file<interval_node<T>*>(stop_filename().c_str(), bigN+1);
+        stop.mmap_file(stop_filename().c_str(), READ_WRITE_SHARED, 0, bigN+1);
+        for (auto& i : stop) { i = nullptr; }
+        // mmap our eventlist
+        uint64_t eventlist_size = 0;
+        uint64_t l=0,starting=-1;
+        for (uint64_t i=0; i<n; ++i) {
             l = a[i].l;
-            //std::cerr << "processing " << a[i] << std::endl;
             if (l != starting) {
-                // sorted event lists for sweepline
-                eventlist[a[i].r].push_back(&a[i]);
-                eventlist[l].push_back(&a[i]);
+                eventlist_size += 2;
+            }
+            starting = l;
+        }
+
+        fill_file<interval_node<T>*>(eventlist_filename().c_str(), eventlist_size);
+        eventlist.mmap_file(eventlist_filename().c_str(), READ_WRITE_SHARED, 0, eventlist_size);
+        for (uint64_t i=0; i<eventlist_size; ++i) {
+            eventlist[i] = nullptr;
+        }
+
+        fill_file<uint64_t>(eventlist_layout_filename().c_str(), bigN+2);
+        eventlist_layout.mmap_file(eventlist_layout_filename().c_str(), READ_WRITE_SHARED, 0, bigN+2);
+        for (uint64_t i=0; i<bigN+2; ++i) {
+            eventlist_layout[i] = 0;
+        }
+
+        // determine the layout, using our eventlist_layout to temporarily store the counts
+        l=0; starting=-1;
+        for (uint64_t i=0; i<n; ++i) {
+            l = a[i].l;
+            if (l != starting) {
+                ++eventlist_layout[a[i].r];
+                ++eventlist_layout[l];
             } else {
                 assert(a[i-1].l == l && a[i-1].r >= a[i].r);
                 a[i-1].smaller = &a[i];
             }
             starting = l;
         }
+        // record the layout offsets in the eventlist_layout
+        uint64_t offset = 0;
+        for (uint64_t i=1; i<=bigN+1; ++i) {
+            uint64_t count = eventlist_layout[i];
+            //std::cerr << "count at " << i << " = " << count << std::endl;
+            eventlist_layout[i] = offset;
+            offset += count;
+            //std::cerr << "eventlist_layout " << i << " -> " << offset << std::endl;
+        }
+        std::cerr << "eventlist size " << eventlist.size() << std::endl;
+        // build our data structures
+        l=0; starting=-1;
+        for (uint64_t i=0; i<n; ++i) {
+            if (i % 1000 == 0) {
+                std::cerr << "eventlist " << i << "\r";
+            }
+            l = a[i].l;
+            //std::cerr << "processing " << a[i] << std::endl;
+            if (l != starting) {
+                // sorted event lists for sweepline
+                // find were to insert
+                uint64_t write_at = eventlist_layout[a[i].r];
+                //std::cerr << "write at for r " << write_at << std::endl;
+                while (eventlist[write_at] != nullptr) ++write_at;
+                eventlist[write_at] = &a[i];
+                write_at = eventlist_layout[l];
+                //std::cerr << "write at for l " << write_at << std::endl;
+                while (eventlist[write_at] != nullptr) ++write_at;
+                eventlist[write_at] = &a[i];
+            } else {
+                assert(a[i-1].l == l && a[i-1].r >= a[i].r);
+                a[i-1].smaller = &a[i];
+            }
+            starting = l;
+        }
+        std::cerr << std::endl;
 
         // sweep line
-        std::list<interval<T>*> L; // status list
-        interval<T>* temp;
-        interval<T>* last;
-        for (i=1; i<=bigN; ++i) {
+        std::list<interval_node<T>*> L; // status list
+        interval_node<T>* temp;
+        interval_node<T>* last;
+        for (uint64_t i=1; i<=bigN; ++i) {
+            //for (uint64_t i=1; i<=bigN; ++i) {
+            if (i % 1000 == 0) {
+                std::cerr << "building " << i << "\r";
+            }
             // interval with starting point i
-            if (!eventlist[i].empty()) {
-                //std::cerr << "eventlist size " << eventlist[i].size() << std::endl;
-                temp = eventlist[i].back();
-                if (temp->l == i) {
-                    L.push_back(temp);
-                    temp->pIt = std::prev(L.end());
-                    eventlist[i].pop_back();
+            //uint64_t x = eventlist_delim.select1(i-1)+1;
+            //uint64_t y = eventlist_delim.select1(i);
+            uint64_t x = eventlist_layout[i];
+            uint64_t y = eventlist_layout[i+1];
+            if (y - x > 0) {
+                //std::cerr << "eventlist size " << y - x << std::endl;
+                //temp = eventlist[i].back();
+                //temp = &a[eventlist.at(x)];
+                uint64_t read_at = y-1;
+                while (read_at != x-1 && eventlist[read_at] == nullptr) --read_at;
+                if (read_at != x-1) {
+                    temp = eventlist[read_at];
+                    if (temp->l == i) {
+                        L.push_back(temp);
+                        temp->pIt = std::prev(L.end());
+                        eventlist[read_at] = nullptr;
+                    }
                 }
             }
             /*
@@ -290,36 +419,49 @@ public:
                 // compute stop[i]
                 stop[i] = L.back();
                 // intervals with end points i
-                for (auto it = eventlist[i].rbegin(); it != eventlist[i].rend(); ++it) {
-                    temp = *it;
-                    //std::cerr << "Temp " << temp->l << " " << temp->r << std::endl;
-                    if (temp->pIt != L.begin()) {
-                        //std::cerr << "setting last " << *temp << std::endl;
-                        last = *std::prev(temp->pIt);
-                    } else last = &dummy;
-                    //std::cerr << "\n\t\t" << last << "\t\t" << temp << std::endl;
-                    temp->parent = last;
-                    temp->leftsibling = last->rightchild;
-                    last->rightchild = temp;
-                    //temp->pIt =
-                    //std::cerr << "L size " << L.size() << std::endl;
-                    //if (temp->pIt != L.end())
-                    L.erase(temp->pIt);
-                    //temp->pIt = std::prev(L.end());
-                    last = temp;
+                uint64_t x = eventlist_layout[i];
+                uint64_t y = eventlist_layout[i+1];
+                if (y - x > 0) {
+                    uint64_t read_at = y-1;
+                    while (read_at != x-1 && eventlist[read_at] == nullptr) --read_at;
+                    //if (read_at == x-1) last = &dummy;
+                    //std::cerr << "read_at = " << read_at << std::endl;
+                    for (uint64_t j = read_at; j != x-1; --j) {
+                        //std::cerr << "looking at eventlist " << j << std::endl;
+                        temp = eventlist[j];
+                        //std::cerr << "temp " << temp << std::endl;
+                        //std::cerr << "Temp " << temp->l << " " << temp->r << std::endl;
+                        if (temp->pIt != L.begin()) {
+                            //std::cerr << "setting last " << *temp << std::endl;
+                            last = *std::prev(temp->pIt);
+                        } else last = &dummy;
+                        //std::cerr << "\n\t\t" << last << "\t\t" << temp << std::endl;
+                        temp->parent = last;
+                        temp->leftsibling = last->rightchild;
+                        last->rightchild = temp;
+                        //std::cerr << "L size " << L.size() << std::endl;
+                        L.erase(temp->pIt);
+                        last = temp;
+                    }
                 }
             }
         }
+        std::cerr << std::endl;
+
+        eventlist.munmap_file();
+        std::remove(eventlist_filename().c_str());
+        eventlist_layout.munmap_file();
+        std::remove(eventlist_layout_filename().c_str());
 //#ifdef INTERVALSTAB_DEBUG
         //std::cerr << "\nDummy\t\t" << &dummy << "\n" << a.size() << std::endl;
 //#endi
     }
 
 //#ifdef INTERVALSTAB_DEBUG
-    bool verify(mmappable_vector<interval<T>*> output, const uint64_t& q) {
+    bool verify(mmappable_vector<interval_node<T>*> output, const uint64_t& q) {
 //	cout << "\nQuery q=" << q << ":\n" << output;
-        interval<T>* temp;
-        interval<T>* last = nullptr;
+        interval_node<T>* temp;
+        interval_node<T>* last = nullptr;
         while (!output.empty()) {
             temp = output.back();
             output.pop_back();
@@ -352,38 +494,29 @@ public:
         open_writers(f);
 	};
 
+    ~faststabbing(void) {
+        a.munmap_file();
+        std::remove(node_filename().c_str());
+        stop.munmap_file();
+        std::remove(stop_filename().c_str());
+    }
+
     void add(const interval<T>& it) {
         auto& writer = get_writer();
         writer.write((char*)&it, sizeof(interval<T>));
     }
 
     void index(void) {
-        // calculate numberDomain, numberIntervals, n, and bigN
-        // sync the writers and mmap the file into our vector
-        sync_and_close_parallel_writers();
-        a.mmap_file(filename.c_str(), READ_WRITE_SHARED, 0, record_count());
-        n = record_count(); // number of intervals
-        ips4o::parallel::sort(a.begin(), a.end()); // sort the intervals
-        uint64_t domain_count = 0; // find the domain of our integer space
-        for (auto& i : a) { if (i.r > domain_count) domain_count = i.r; }
-        bigN = domain_count; // number of domains
-        // mmap our sweepline and stop
-        fill_file<std::vector<interval<T>*>>(eventlist_filename().c_str(), bigN+1);
-        fill_file<interval<T>*>(stop_filename().c_str(), bigN+1);
-        eventlist.mmap_file(eventlist_filename().c_str(), READ_WRITE_SHARED, 0, bigN+1);
-        stop.mmap_file(stop_filename().c_str(), READ_WRITE_SHARED, 0, bigN+1);
-        for (auto& i : stop) { i = nullptr; }
-        // build our data structures
         preprocessing();
     }
 
-    std::vector<interval<T>*> query(const uint64_t& q) {
+    std::vector<interval_node<T>*> query(const uint64_t& q) {
         assert(q >= 1 && q <= bigN+1);
-        std::vector<interval<T>*> output;
+        std::vector<interval_node<T>*> output;
         if (stop[q] == nullptr) return output; // no stabbed intervals
-        interval<T>* i;
-        interval<T>* temp;
-        std::deque<interval<T>*> process;
+        interval_node<T>* i;
+        interval_node<T>* temp;
+        std::deque<interval_node<T>*> process;
         for (temp = stop[q]; temp->parent != nullptr; temp = temp->parent) {
             process.push_front(temp);
         }
