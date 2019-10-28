@@ -113,7 +113,7 @@ set(sdsl-lite-divsufsort_LIB "${INSTALL_DIR}/src/sdsl-lite-build/external/libdiv
 # DYNAMIC (full build using its cmake config)
 ExternalProject_Add(dynamic
   GIT_REPOSITORY "https://github.com/vgteam/DYNAMIC.git"
-  GIT_TAG "40319a97b0f2e44ad8603c136712d402841dba5e"
+  GIT_TAG "0da557fbd0613377bbde26dd60ded655bea58d3b"
   # we don't actually install dynamic... it's header only
   #CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_DIR}
   UPDATE_COMMAND ""
@@ -123,19 +123,32 @@ ExternalProject_Add(dynamic
 ExternalProject_Get_property(dynamic INSTALL_DIR)
 set(dynamic_INCLUDE "${INSTALL_DIR}/src/dynamic/include")
 
+# hopscotch_map (required by DYNAMIC)
+ExternalProject_Add(hopscotch_map
+  GIT_REPOSITORY "https://github.com/Tessil/hopscotch-map.git"
+  # we don't actually install hopscotch_map... it's header only
+  #CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${INSTALL_DIR}
+  UPDATE_COMMAND ""
+  INSTALL_COMMAND ""
+  BUILD_COMMAND ""
+  CONFIGURE_COMMAND "")
+ExternalProject_Get_property(hopscotch_map INSTALL_DIR)
+set(hopscotch_map_INCLUDE "${INSTALL_DIR}/src/hopscotch_map/include")
+
 set(CMAKE_BUILD_TYPE Debug)
 
 # set up our target executable and specify its dependencies and includes
 add_executable(intervalstab
   ${CMAKE_SOURCE_DIR}/src/main.cpp
   )
-add_dependencies(intervalstab ips4o tayweeargs mmap_allocator sdsl-lite dynamic)
+add_dependencies(intervalstab ips4o tayweeargs mmap_allocator sdsl-lite dynamic hopscotch_map)
 target_include_directories(intervalstab PUBLIC
   "${CMAKE_SOURCE_DIR}/src"
   "${ips4o_INCLUDE}"
   "${mmap_allocator_INCLUDE}"
   "${tayweeargs_INCLUDE}"
   "${dynamic_INCLUDE}"
+  "${hopscotch_map_INCLUDE}"
   "${sdsl-lite_INCLUDE}"
   "${sdsl-lite-divsufsort_INCLUDE}")
 
